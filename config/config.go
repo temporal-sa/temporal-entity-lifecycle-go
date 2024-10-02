@@ -46,9 +46,10 @@ func MustGetClient() client.Client {
 		},
 		DataConverter: converter.GetDefaultDataConverter(),
 	}
-	c, err := client.Dial(clientOptions)
+	tmp, err := client.Dial(clientOptions)
 	if err != nil {
 		panic(err)
 	}
+	c = tmp
 	return c
 }
