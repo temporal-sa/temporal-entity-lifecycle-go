@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"entity-demo/constants"
-	"entity-demo/messages"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/constants"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/messages"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/sdk/client"
 	"net/http"

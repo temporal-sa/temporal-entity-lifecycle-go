@@ -1,9 +1,9 @@
 package router
 
 import (
-	"entity-demo/cmd/web/handler"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/cmd/web/handler"
 	"go.temporal.io/sdk/client"
 	"os"
 )

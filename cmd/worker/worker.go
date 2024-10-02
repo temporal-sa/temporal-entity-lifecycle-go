@@ -1,10 +1,10 @@
 package main
 
 import (
-	"entity-demo/config"
-	"entity-demo/constants"
-	"entity-demo/orchestrations"
-	"entity-demo/orchestrations/activity_handler"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/config"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/constants"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/orchestrations"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/orchestrations/activity_handler"
 	"go.temporal.io/sdk/worker"
 	"log"
 )
@@ -12,7 +12,7 @@ import (
 func main() {
 	c := config.MustGetClient()
 	defer c.Close()
-	ah, err := activity_handler.New(activity_handler.WithClient(c))
+	ah, err := activity_handler.New(c)
 	if err != nil {
 		log.Fatalln("Unable to initialize activity handler", err)
 	}

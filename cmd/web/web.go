@@ -1,9 +1,9 @@
 package main
 
 import (
-	"entity-demo/cmd/web/router"
-	"entity-demo/config"
 	"fmt"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/cmd/web/router"
+	"github.com/temporal-sa/temporal-entity-lifecycle-go/config"
 	"log"
 )
 

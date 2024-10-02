@@ -40,8 +40,8 @@ TEMPORAL_CLIENT_HOSTPORT
 TEMPORAL_CLIENT_NAMESPACE
 ```
 1. Review `PRODUCT_REQUIREMENTS.md` with the audience
-2. Open a terminal window and run: `go run entity-demo/cmd/worker/worker.go`
-3. Open a terminal window and run: `go run entity-demo/cmd/web/web.go`
+2. Open a terminal window and run: `go run cmd/worker/worker.go`
+3. Open a terminal window and run: `go run cmd/web/web.go`
 4. In browser visit `localhost:8081/create_user`
 5. Create a user, make that user an approver
 6. Create user with the same name as the previous step: only the first user has been created!
@@ -64,6 +64,7 @@ TEMPORAL_CLIENT_NAMESPACE
 19. Perform a replay test (`orchestrations/user_account_handler_test.go:Test_Orchestration_ReplayHistory`)
 20. Uncomment `user_account_state/user_account_state.go:126-130` & rerun replay test: fails because of nondeterminism 
 21. Uncomment `user_account_state/user_account_state.go:124-131` & rerun replay test: passes because of versioning
+22. Navigate back to the user page for each user and press the delete button (otherwise your entities will run forever!)
 
 ## Miscellaneous Notes
 ### Custom Search Attributes
