@@ -33,6 +33,6 @@ goals.
    3. Permissions requested
 10. Extensible
     1. Support adding additional permission types within a three business day time frame
-    2. Support the ability to add new UI clients within a single sprint 1
+    2. Support the ability to add new UI clients within a single sprint
 11. Auditable
     1. Every interaction with a user listed in this document and all future interactions need to be auditable
