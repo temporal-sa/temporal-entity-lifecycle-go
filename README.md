@@ -30,15 +30,33 @@ code, for example:
 * A virtual shopping cart
 * Chat sessions with an LLM (e.g. Gemini, ChatGPT)
 
+## Configuring the environment
 
-## Running the demo
 Environment variables needed for `go run` commands:
+```bash
+export TEMPORAL_CLIENT_KEY_PATH="<pathToKey>"
+export TEMPORAL_CLIENT_CERT_PATH= "<pathToCert>"
+export TEMPORAL_CLIENT_HOSTPORT="<namespace>.<accountId>.tmprl.cloud:7233"
+export TEMPORAL_CLIENT_NAMESPACE="<namespace>.<accountId>"
 ```
-TEMPORAL_CLIENT_KEY_PATH 
-TEMPORAL_CLIENT_CERT_PATH 
-TEMPORAL_CLIENT_HOSTPORT
-TEMPORAL_CLIENT_NAMESPACE
+You will need to set up search attributes on the target namespace:
+
+You can set this using `tcld` (v0.32+)
 ```
+tcld namespace search-attributes add -n $TEMPORAL_CLIENT_NAMESPACE --sa "permissions=KeywordList"
+```
+
+Alternatively you can add the search attribute in your web browser through the Temporal UI by editing the target 
+Namespace, visit:
+
+```
+https://cloud.temporal.io/namespaces/<namespace>.<.accountId>/edit
+```
+
+then click on `+ Add a Search Attribute` under the `Custom Search Attributes` panel. Set the Attribute field to 
+"permissions" and the Type as "KeywordList", then click the `Save` button at the top right.
+## Running the demo
+
 1. Review `PRODUCT_REQUIREMENTS.md` with the audience
 2. Open a terminal window and run: `go run cmd/worker/worker.go`
 3. Open a terminal window and run: `go run cmd/web/web.go`
