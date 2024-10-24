@@ -63,9 +63,16 @@ func (s *UnitTestSuite) Test_Orchestration_HandleApprovePermission() {
 	s.Nil(err)
 	s.env.SetTestTimeout(time.Second * 5)
 	uc := &updateCallbacks{t: s.T()}
-	attributeKey := temporal.NewSearchAttributeKeyKeywordList(constants.PermissionsSearchAttributeKey)
-	attributes := temporal.NewSearchAttributes(attributeKey.ValueSet([]string{constants.PermissionTypeReadFiles}))
-	s.env.OnUpsertTypedSearchAttributes(attributes).Return(nil).Once()
+	permissionsKey := temporal.NewSearchAttributeKeyKeywordList(constants.PermissionsSearchAttributeKey)
+	permissionsSearchAttrState1 := temporal.NewSearchAttributes(permissionsKey.ValueSet([]string{}))
+	s.env.OnUpsertTypedSearchAttributes(permissionsSearchAttrState1).Return(nil).Once()
+	permissionsSearchAttrState2 := temporal.NewSearchAttributes(permissionsKey.ValueSet([]string{constants.PermissionTypeReadFiles}))
+	s.env.OnUpsertTypedSearchAttributes(permissionsSearchAttrState2).Return(nil).Once()
+	approvalsKey := temporal.NewSearchAttributeKeyKeywordList(constants.AwaitingApprovalSearchAttributeKey)
+	approvalsSearchAttrState1 := temporal.NewSearchAttributes(approvalsKey.ValueSet([]string{constants.PermissionTypeReadFiles}))
+	s.env.OnUpsertTypedSearchAttributes(approvalsSearchAttrState1).Return(nil).Once()
+	approvalsSearchAttrState2 := temporal.NewSearchAttributes(approvalsKey.ValueSet([]string{}))
+	s.env.OnUpsertTypedSearchAttributes(approvalsSearchAttrState2).Return(nil).Once()
 	s.env.RegisterActivityWithOptions(new(activity_handler.Handler).VerifyApprover, activity.RegisterOptions{
 		Name: "VerifyApprover",
 	})

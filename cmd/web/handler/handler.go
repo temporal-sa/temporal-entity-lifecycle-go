@@ -1,28 +1,42 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/temporal-sa/temporal-entity-lifecycle-go/constants"
 	"github.com/temporal-sa/temporal-entity-lifecycle-go/messages"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/sdk/client"
+	"go.uber.org/zap"
 	"net/http"
 	"strings"
 	"time"
 )
 
+type Logger interface {
+	Debug(msg string, fields ...zap.Field)
+	Info(msg string, fields ...zap.Field)
+	Warn(msg string, fields ...zap.Field)
+	Error(msg string, fields ...zap.Field)
+}
+
 type Handler struct {
 	c  client.Client
+	l  Logger
 	ns string
 }
 
 type Option func(*Handler)
 
 func New(c client.Client, namespace string, opts ...Option) (*Handler, error) {
+	logger, _ := zap.NewProduction()
 	h := &Handler{
 		c:  c,
 		ns: namespace,
+		l:  logger,
 	}
 	if h.c == nil {
 		return nil, errors.New("temporal client required & missing")
@@ -42,7 +56,20 @@ func (h Handler) GETCreateUser(gc *gin.Context) {
 }
 
 func (h Handler) GETRequestPermission(gc *gin.Context) {
-	gc.HTML(http.StatusOK, "request_permission.html", nil)
+	listWorkflowReq := &workflowservice.ListWorkflowExecutionsRequest{
+		Namespace: h.ns,
+		Query:     "`ExecutionStatus`=\"Running\"",
+	}
+	listResp, err := h.c.ListWorkflow(gc.Request.Context(), listWorkflowReq)
+	if err != nil {
+		_ = gc.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	users := make([]string, 0)
+	for _, e := range listResp.GetExecutions() {
+		users = append(users, e.GetExecution().GetWorkflowId())
+	}
+	gc.HTML(http.StatusOK, "request_permission.html", users)
 }
 
 func (h Handler) GETUser(gc *gin.Context) {
@@ -83,19 +110,110 @@ func (h Handler) GETUsers(gc *gin.Context) {
 		queryString = strings.Replace(queryString, "{NAME}", gc.Query("permission"), 1)
 		listWorkflowReq.Query = queryString
 	}
-	listResponse, err := h.c.ListWorkflow(gc.Request.Context(), listWorkflowReq)
-	if err != nil {
-		_ = gc.AbortWithError(http.StatusInternalServerError, err)
-		return
+	var listResponse *workflowservice.ListWorkflowExecutionsResponse
+	for listResponse == nil {
+		tempListResponse, err := h.c.ListWorkflow(gc.Request.Context(), listWorkflowReq)
+		if err != nil {
+			_ = gc.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		if gc.Query("flashUserCreated") != "" {
+			// Poll ListWorkflow until we find the created user: this is for demonstration purposes only and NOT
+			// indicative of best practices
+			for _, e := range tempListResponse.GetExecutions() {
+				if e.GetExecution().GetWorkflowId() == gc.Query("flashUserCreated") {
+					listResponse = tempListResponse
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+		} else if gc.Query("permissionRequested") != "" && gc.Query("username") != "" {
+			// Poll ListWorkflow until we find the requested permission: this is for demonstration purposes only
+			// and NOT indicative of best practices
+			for _, e := range tempListResponse.GetExecutions() {
+				if e.GetExecution().GetWorkflowId() == gc.Query("username") {
+					if e.GetSearchAttributes().GetIndexedFields()[constants.AwaitingApprovalSearchAttributeKey] != nil {
+						awaitingApprovals := make([]string, 0)
+						awaitingApprovalsBytes := e.GetSearchAttributes().
+							GetIndexedFields()[constants.AwaitingApprovalSearchAttributeKey].GetData()
+						if len(awaitingApprovalsBytes) > 0 {
+							err := json.Unmarshal(awaitingApprovalsBytes, &awaitingApprovals)
+							if err != nil {
+								_ = gc.AbortWithError(http.StatusInternalServerError, err)
+								return
+							}
+						}
+						for _, aa := range awaitingApprovals {
+							if aa == gc.Query("permissionRequested") {
+								listResponse = tempListResponse
+								break
+							}
+						}
+					}
+				}
+			}
+		} else {
+			listResponse = tempListResponse
+		}
 	}
 	type User struct {
-		Username string
+		Username          string
+		AwaitingApprovals []string
 	}
-	users := make([]User, 0)
+	type UsersResponse struct {
+		AdminUsername                  string
+		Users                          []User
+		FlashUserCreatedMessage        string
+		FlashUserAlreadyCreatedMessage string
+	}
+	response := UsersResponse{
+		Users: make([]User, 0),
+	}
+	if gc.Query("flashUserCreated") != "" {
+		response.FlashUserCreatedMessage = "Created user " + gc.Query("flashUserCreated")
+	}
+	if gc.Query("flashUserAlreadyCreated") != "" {
+		msg := fmt.Sprintf("User %s has already been created", gc.Query("flashUserAlreadyCreated"))
+		response.FlashUserAlreadyCreatedMessage = msg
+	}
 	for _, e := range listResponse.GetExecutions() {
-		users = append(users, User{Username: e.Execution.WorkflowId})
+		awaitingApprovals := make([]string, 0)
+		awaitingApprovalsBytes := e.GetSearchAttributes().
+			GetIndexedFields()[constants.AwaitingApprovalSearchAttributeKey].GetData()
+		if len(awaitingApprovalsBytes) > 0 {
+			err := json.Unmarshal(awaitingApprovalsBytes, &awaitingApprovals)
+			if err != nil {
+				_ = gc.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
+		}
+		permissions := make([]string, 0)
+		permissionsBytes := e.GetSearchAttributes().GetIndexedFields()[constants.PermissionsSearchAttributeKey].
+			GetData()
+		if len(permissionsBytes) > 0 {
+			err := json.Unmarshal(permissionsBytes, &permissions)
+			if err != nil {
+				_ = gc.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
+		}
+		for _, p := range permissions {
+			if p == constants.PermissionTypeGrantPermissions && response.AdminUsername == "" {
+				response.AdminUsername = e.GetExecution().GetWorkflowId()
+				break
+			}
+		}
+		u := User{
+			Username: e.GetExecution().GetWorkflowId(),
+		}
+		if len(awaitingApprovals) > 0 {
+			u.AwaitingApprovals = awaitingApprovals
+		} else {
+			u.AwaitingApprovals = []string{}
+		}
+		response.Users = append(response.Users, u)
 	}
-	gc.HTML(http.StatusOK, "users.html", users)
+	gc.HTML(http.StatusOK, "users.html", response)
 }
 
 func (h Handler) POSTApprovePermission(gc *gin.Context) {
@@ -142,9 +260,11 @@ func (h Handler) POSTCreateUser(gc *gin.Context) {
 		gc.String(http.StatusBadRequest, "username required and missing")
 		return
 	}
+	workflowID := gc.Request.FormValue("username")
 	opts := client.StartWorkflowOptions{
-		ID:        gc.Request.FormValue("username"),
-		TaskQueue: constants.EntityTaskQueueName,
+		ID:                                       workflowID,
+		TaskQueue:                                constants.EntityTaskQueueName,
+		WorkflowExecutionErrorWhenAlreadyStarted: true,
 	}
 	workflowInput := messages.UserAccountOrchestrationInput{
 		Permissions:      make([]string, 0),
@@ -153,6 +273,11 @@ func (h Handler) POSTCreateUser(gc *gin.Context) {
 
 	run, err := h.c.ExecuteWorkflow(gc.Request.Context(), opts, "Orchestration", workflowInput)
 	if err != nil {
+		var ser *serviceerror.WorkflowExecutionAlreadyStarted
+		if errors.As(err, &ser) {
+			gc.Redirect(http.StatusSeeOther, "/users?flashUserAlreadyCreated="+workflowID)
+			return
+		}
 		_ = gc.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -179,7 +304,7 @@ func (h Handler) POSTCreateUser(gc *gin.Context) {
 			return
 		}
 	}
-	gc.Redirect(http.StatusSeeOther, "/users")
+	gc.Redirect(http.StatusSeeOther, "/users?flashUserCreated="+workflowID)
 }
 
 func (h Handler) POSTDeleteUser(gc *gin.Context) {
@@ -240,7 +365,8 @@ func (h Handler) POSTRequestPermission(gc *gin.Context) {
 		_ = gc.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	redirectRoute := "/user?id=" + gc.PostForm("username")
+	redirectRoute := fmt.Sprintf("/users?permissionRequested=%s&username=%s", gc.PostForm("permission_type"),
+		gc.PostForm("username"))
 	gc.Redirect(http.StatusSeeOther, redirectRoute)
 }
 

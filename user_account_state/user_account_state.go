@@ -57,8 +57,18 @@ func WithSnapshot(input messages.UserAccountOrchestrationInput) Option {
 }
 
 func (state *UserAccountState) refreshSearchAttributes() error {
+	var errs error
 	permissionsKey := temporal.NewSearchAttributeKeyKeywordList(constants.PermissionsSearchAttributeKey)
-	return workflow.UpsertTypedSearchAttributes(state.ctx, permissionsKey.ValueSet(state.permissionsGranted))
+	err := workflow.UpsertTypedSearchAttributes(state.ctx, permissionsKey.ValueSet(state.permissionsGranted))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	approvalsKey := temporal.NewSearchAttributeKeyKeywordList(constants.AwaitingApprovalSearchAttributeKey)
+	err = workflow.UpsertTypedSearchAttributes(state.ctx, approvalsKey.ValueSet(state.awaitingApproval))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	return errs
 }
 
 func (state *UserAccountState) userHasPermissionPendingApproval(permission string) bool {
@@ -100,7 +110,7 @@ func (state *UserAccountState) RequestAddPermission(req messages.AddUserPermissi
 		return errors.New("user deleted")
 	}
 	state.awaitingApproval = append(state.awaitingApproval, req.Permission)
-	return nil
+	return state.refreshSearchAttributes()
 }
 
 func (state *UserAccountState) RequestApprovePermission(ctx workflow.Context, req messages.ApproveUserPermissionRequest) error {
@@ -120,8 +130,8 @@ func (state *UserAccountState) RequestApprovePermission(ctx workflow.Context, re
 			return err
 		}
 		// **** uncomment for versioning & replay testing demo
-		//v := workflow.GetVersion(ctx, "add_send_notifications_activity", workflow.DefaultVersion, 2)
-		//if v == 2 {
+		//v := workflow.GetVersion(ctx, "add_send_notifications_activity", workflow.DefaultVersion, 0)
+		//if v != workflow.DefaultVersion {
 		//	err = workflow.ExecuteActivity(actCtx, "SendNotifications", &messages.SendNotificationsRequest{
 		//		ApproverID:     req.ApproverID,
 		//		PermissionType: req.Permission,

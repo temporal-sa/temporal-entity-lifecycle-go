@@ -44,6 +44,7 @@ You will need to set up search attributes on the target namespace:
 You can set this using `tcld` (v0.32+)
 ```
 tcld namespace search-attributes add -n $TEMPORAL_CLIENT_NAMESPACE --sa "permissions=KeywordList"
+tcld namespace search-attributes add -n $TEMPORAL_CLIENT_NAMESPACE --sa "awaiting_approval=KeywordList"
 ```
 
 Alternatively you can add the search attribute in your web browser through the Temporal UI by editing the target 
@@ -65,23 +66,24 @@ then click on `+ Add a Search Attribute` under the `Custom Search Attributes` pa
 6. Create user with the same name as the previous step: only the first user has been created!
 7. Create a new user with a new name
 8. View each user profile and review their permissions: the first user should have `grant_permisssions` and the second should not have any
-9. Request the `read_files` permission for the second user
-10. Approve the `read_files` permission for the second user with the first user being the approver
-11. Delete the second user via the button in their profile view
-12. Refresh the page to see the time window to undo deletion is ticking down
+9. Visit the Temporal UI to see that each user is represented as workflow with its own event history 
+10. Request the `read_files` permission for the second user
+11. Approve the `read_files` permission for the second user
+12. Delete the second user via the button in their profile view
 13. Undo the delete
 14. Search for users w/ each permission type (Users view)
 15. View Temporal UI and review the event history for each workflow, discuss which Temporal primitives are used
 16. Code walkthrough: 
     1. `orchestrations/user_account_handler.go`
+       1. Discuss purpose of ContinueAsNew and how state is recovered from the input
     2. `user_account_state/user_account_state.go` 
     3. `orchestrations/activity_handler/activity_handler.go`
 17. Review tests:
     1. `orchestrations/user_account_handler_test.go`
 18. Show in the Temporal UI where to download replay history, mention that you can also use the SDK or CLI to download histories
 19. Perform a replay test (`orchestrations/user_account_handler_test.go:Test_Orchestration_ReplayHistory`)
-20. Uncomment `user_account_state/user_account_state.go:126-130` & rerun replay test: fails because of nondeterminism 
-21. Uncomment `user_account_state/user_account_state.go:124-131` & rerun replay test: passes because of versioning
+20. Uncomment `user_account_state/user_account_state.go:135-139` & rerun replay test: fails because of nondeterminism 
+21. Uncomment `user_account_state/user_account_state.go:133-140` & rerun replay test: passes because of versioning
 22. Navigate back to the user page for each user and press the delete button (otherwise your entities will run forever!)
 
 ## Miscellaneous Notes

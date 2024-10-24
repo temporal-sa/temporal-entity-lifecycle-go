@@ -4,6 +4,7 @@ const (
 	AddUserPermissionUpdateHandlerName     = "add_permission"
 	ApproveUserPermissionUpdateHandlerName = "approve_permission"
 	AwaitingApprovalQueryHandlerName       = "awaiting_approval"
+	AwaitingApprovalSearchAttributeKey     = "awaiting_approval"
 	CreateUserAccountUpdateHandlerName     = "create"
 	DeleteUserAccountUpdateHandlerName     = "delete"
 	EntityTaskQueueName                    = "entity"
