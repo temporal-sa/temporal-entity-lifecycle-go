@@ -18,6 +18,7 @@ func New(c client.Client) (*Router, error) {
 		Engine: gin.Default(),
 		c:      c,
 	}
+
 	if r.c == nil {
 		return nil, errors.New("temporal client required & missing")
 	}

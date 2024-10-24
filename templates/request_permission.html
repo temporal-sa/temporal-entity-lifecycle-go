@@ -12,12 +12,19 @@
 <body class="container">
 {{ template "menu.html" . }}
 <div class="container">
+    <div class="alert alert-warning" role="alert">
+        Current Role: Requester
+    </div>
     <h1>Request User Permission</h1>
     <form action="/request_permission" method="post" enctype="multipart/form-data">
         <div class="row-g-3">
             <div class="col-12  mb-3">
-                <label for="username">Username</label>
-                <input type="text" class="form-control" id="username" name="username">
+                <select class="form-select" aria-label="Select user" name="username">
+                    <option selected>Username</option>
+                    {{ range . }}
+                    <option value="{{ . }}">{{ . }}</option>
+                    {{ end }}
+                </select>
             </div>
             <div class="col-12  mb-3">
                 <select class="form-select" aria-label="Select permission type" name="permission_type">
@@ -27,7 +34,7 @@
                 </select>
             </div>
             <div class="col-12">
-                <button type="submit" class="btn btn-primary">Request Permission</button>
+                <button type="submit" class="btn btn-primary" onclick="this.form.submit();this.disabled=true;this.innerText='Requesting...'">Request Permission</button>
             </div>
         </div>
     </form>

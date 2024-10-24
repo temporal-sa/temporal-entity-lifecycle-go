@@ -12,6 +12,25 @@
 <body class="container">
 {{ template "menu.html" . }}
 <div class="container">
+    {{ $adminusername := .AdminUsername }}
+    {{ if $adminusername }}
+    <div class="alert alert-primary" role="alert">
+        Current Role: Admin
+    </div>
+    {{ end }}
+    {{ if eq .FlashUserCreatedMessage "" }}
+    {{ else }}
+    <div class="alert alert-success" role="alert">
+        {{ .FlashUserCreatedMessage}}
+    </div>
+    {{ end }}
+
+    {{ if eq .FlashUserAlreadyCreatedMessage "" }}
+    {{ else }}
+    <div class="alert alert-warning" role="alert">
+        {{ .FlashUserAlreadyCreatedMessage}}
+    </div>
+    {{ end }}
     <h1>Users</h1>
     <form>
         <div class="row-g-3">
@@ -29,8 +48,24 @@
         </div>
     </form>
     <hr />
-    {{ range . }}
-    <div><a href="/user?id={{ .Username }}">{{ .Username }}</a></div>
+    {{ range .Users }}
+    <div class="row-g-12">
+        {{ $username := .Username }}
+        <a href="/user?id={{ .Username }}"><h2>{{ .Username }}</h2></a>
+        {{ if .AwaitingApprovals }}
+        <h3>Awaiting Approvals</h3>
+        <div>
+            {{ range .AwaitingApprovals }}
+            <form action="/approve_permission" method="post">
+                <input type="hidden" class="form-control" id="approver_username" name="approver_username" value="{{ $adminusername }}">
+                <input type="hidden" class="form-control" id="requester_username" name="requester_username" value="{{ $username }}">
+                <input type="hidden" class="form-control" name="permission_type" value="{{ . }}">
+                <button type="submit" class="btn btn-primary" onclick="this.form.submit();this.disabled=true;this.innerText='Approving...'">Approve {{ . }}</button>
+            </form>
+            {{ end }}
+        </div>
+        {{ end }}
+    </div>
     {{ end }}
 </div>
 </body>
